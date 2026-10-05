@@ -20,3 +20,5 @@ This is a chart created for a class assignment where we began considering color.
 
 ### Map B
 <img width="844" height="498" alt="US State Gini" src="https://github.com/user-attachments/assets/5f11fc02-3de9-42a7-b97f-2d0962cc5df1" />
+
+This was a class exercise where we began exploring how to create maps in R
