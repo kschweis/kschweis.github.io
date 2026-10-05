@@ -1,4 +1,4 @@
-# kschweis.github.io
+DatVis Portfolio: Kelley Schweissing
 dat2002
 ![Visualization 1](/Rplot.png)
 <h1>Test Heading</h1>	
