@@ -211,3 +211,622 @@ print(p)
 ggsave("devaluation_of_100_1900_2026.png", p, width = 12, height = 6.5, dpi = 300, bg = "white")
 write.csv(dollar_value, "devaluation_of_100_1900_2026.csv", row.names = FALSE)
 ```
+
+# A note for Guy
+I would like to learn how to put interactive graphics and dashboards here next.  Is that up coming in the curriculum or should I see you outside of class time?  The following is the R code for some of my stuff I was messing with this weekend.
+
+## Wealth Needed to Buy a Home
+<img width="2340" height="1300" alt="quarterly_mortgage_payments" src="https://github.com/user-attachments/assets/4995a93c-0690-4206-8859-132c336fc339" />
+
+
+## Housing Market Bubbles Modeler
+
+```
+# =============================================================================
+# What happens when a bubble pops?  Interactive Shiny app for RStudio
+#
+#   Gold circle = real value (what the asset is fundamentally worth)
+#   Red circle  = speculative value (what the market is paying)
+#
+# TWO MODES (opens on actual data, 1900-2026)
+#   1. Simulated scenario - a stylised bubble: Boom -> Peak -> Crash -> Panic
+#      (market falls BELOW real value) -> Recovery. Sliders set the size of
+#      the bubble, the depth of the panic and how much the crash damages
+#      real value itself.
+#   2. Actual US housing data, 1900-2026 - the same circles driven by real
+#      history. Pick the full century or a single boom-and-bust episode.
+#
+# HOW TO RUN IN RSTUDIO
+#   1. Install packages once (Console):
+#        install.packages(c("shiny", "ggplot2", "ggforce", "dplyr", "tidyr",
+#                           "haven", "lubridate"))
+#   2. Save this file as app.R in its own folder, open it, click "Run App".
+#   The first time you choose "Actual US housing data" the app downloads the
+#   data (~1 MB) and saves housing_history.csv next to app.R; later runs load
+#   that file instantly. Delete the CSV to force a fresh download.
+#
+# ACTUAL-DATA METHOD
+#   Multiplier (market / real) = price-to-rent ratio / its 1990-1999 average.
+#     1900-1989: Jorda-Schularick-Taylor Macrohistory Database (R6), US housing
+#                rent yield, nominal house prices and CPI.
+#                https://www.macrohistory.net/database/
+#     1990-2026: FRED - Case-Shiller US National Home Price Index (CSUSHPINSA),
+#                CPI Rent of Primary Residence (CUUR0000SEHA), CPI (CPIAUCSL).
+#   Speculative value = house prices adjusted for inflation (FRED series are
+#                       chained onto JST levels at 1990).
+#   Real value        = speculative value / multiplier, i.e. the rent-justified
+#                       price, adjusted for inflation.
+#   Both are indexed so real value = 100 in the first year of the chosen period,
+#   which lets you see real value itself rise and fall.
+#   Dollar amounts (1945+): Federal Reserve Z.1, owner-occupied real estate at
+#   market value (FRED HOOREVLMHMV), nominal dollars.
+#   Annual averages; 2026 is year-to-date.
+#
+# The simulated mode is a stylised model, not a forecast.
+# =============================================================================
+
+library(shiny)
+library(ggplot2)
+library(ggforce)
+library(dplyr)
+library(tidyr)
+library(haven)       # read the JST Stata file
+library(lubridate)
+
+GOLD <- "#D4A017"; RED <- "#C0392B"; BLUE <- "#3B7DD8"; BG <- "#FAF8F3"
+T_MAX <- 100            # simulated model time steps
+
+# =============================================================================
+# 1. Simulated model
+# =============================================================================
+T_PEAK   <- 40          # bubble peaks
+T_TROUGH <- 58          # panic bottom (market below real value)
+T_HEAL   <- 90          # market back to fair value
+
+smooth <- function(x) x * x * (3 - 2 * x)     # smooth 0 -> 1 ramp
+
+simulate <- function(peak, trough, damage, real0 = 100, growth = 0.002) {
+  t <- 0:T_MAX
+  mult <- case_when(
+    t <= T_PEAK   ~ 1 + (peak - 1) * smooth(t / T_PEAK),
+    t <= T_TROUGH ~ peak + (trough - peak) * smooth((t - T_PEAK) / (T_TROUGH - T_PEAK)),
+    t <= T_HEAL   ~ trough + (1 - trough) * smooth((t - T_TROUGH) / (T_HEAL - T_TROUGH)),
+    TRUE          ~ 1
+  )
+  # crash damage to real value hits after the peak; half is repaired later
+  hit <- case_when(
+    t <= T_PEAK        ~ 0,
+    t <= T_TROUGH + 6  ~ damage * smooth((t - T_PEAK) / (T_TROUGH + 6 - T_PEAK)),
+    TRUE               ~ damage * (1 - 0.5 * smooth(pmin((t - T_TROUGH - 6) / 30, 1)))
+  )
+  real <- real0 * (1 + growth)^t * (1 - hit)
+  tibble(t, mult, real, spec = real * mult, market_value = NA_real_, real_value = NA_real_)
+}
+
+phase_sim <- function(t, mult) {
+  case_when(
+    t == 0                       ~ "Start: fairly priced",
+    t >= T_HEAL                  ~ "Aftermath: fairly priced again, but real value is scarred",
+    t <  T_PEAK - 2              ~ "Boom: speculation inflates the red ring",
+    t <= T_PEAK + 2              ~ "Peak: maximum bubble",
+    mult >= 1                    ~ "Crash: speculative value collapses",
+    t <= T_TROUGH + 2 & mult < 1 ~ "Panic: market falls BELOW real value",
+    TRUE                         ~ "Recovery: prices climb back toward real value"
+  )
+}
+
+# =============================================================================
+# 2. Actual US housing data, 1900-2026
+# =============================================================================
+BASE_YEARS <- 1990:1999
+JST_URL    <- "https://www.macrohistory.net/app/download/9834512469/JSTdatasetR6.xlsx"  # served as Stata .dta
+CACHE      <- "housing_history.csv"
+
+EPISODES <- list(
+  "Full history (1900-2026)"                    = c(1900, 2026),
+  "WWI boom & Great Depression (1914-1945)"     = c(1914, 1945),
+  "Post-war housing boom (1940-1965)"           = c(1940, 1965),
+  "2000s bubble & Great Recession (1995-2015)"  = c(1995, 2015),
+  "Pandemic boom (2012-2026)"                   = c(2012, 2026)
+)
+
+read_fred <- function(id) {
+  url <- paste0("https://fred.stlouisfed.org/graph/fredgraph.csv?id=", id)
+  df  <- read.csv(url, stringsAsFactors = FALSE, na.strings = ".")
+  names(df) <- c("date", "value")
+  df %>%
+    mutate(year = as.integer(year(as.Date(date))), value = as.numeric(value)) %>%
+    filter(!is.na(value)) %>%
+    group_by(year) %>%
+    summarise(value = mean(value), .groups = "drop")
+}
+
+build_history <- function() {
+  tmp <- tempfile(fileext = ".dta")
+  download.file(JST_URL, tmp, mode = "wb", quiet = TRUE)
+  jst <- read_dta(tmp) %>%
+    filter(iso == "USA", year >= 1900, !is.na(housing_rent_yd)) %>%
+    transmute(year = as.integer(year), pr = 1 / housing_rent_yd, hp = hpnom, cpi = cpi)
+  jst <- jst %>% mutate(ratio = pr / mean(pr[year %in% BASE_YEARS]))
+
+  fred <- read_fred("CSUSHPINSA") %>% rename(hp = value) %>%
+    inner_join(read_fred("CUUR0000SEHA") %>% rename(rent = value), by = "year") %>%
+    inner_join(read_fred("CPIAUCSL")     %>% rename(cpi  = value), by = "year") %>%
+    mutate(pr = hp / rent) %>%
+    mutate(ratio = pr / mean(pr[year %in% BASE_YEARS]))
+
+  # chain FRED price and CPI levels onto JST levels at 1990
+  k_hp  <- jst$hp[jst$year == 1990]  / fred$hp[fred$year == 1990]
+  k_cpi <- jst$cpi[jst$year == 1990] / fred$cpi[fred$year == 1990]
+
+  mv <- read_fred("HOOREVLMHMV") %>% rename(market_value = value)   # $ millions
+
+  bind_rows(
+    jst  %>% filter(year <  1990) %>% select(year, ratio, hp, cpi),
+    fred %>% filter(year >= 1990) %>% transmute(year, ratio, hp = hp * k_hp, cpi = cpi * k_cpi)
+  ) %>%
+    filter(year <= 2026) %>%
+    mutate(spec_idx = hp / cpi,              # inflation-adjusted market price
+           real_idx = spec_idx / ratio) %>%  # inflation-adjusted rent-justified price
+    left_join(mv, by = "year") %>%
+    mutate(real_value = market_value / ratio) %>%
+    arrange(year)
+}
+
+load_history <- function() {
+  if (file.exists(CACHE)) return(read.csv(CACHE, stringsAsFactors = FALSE))
+  d <- build_history()
+  write.csv(d, CACHE, row.names = FALSE)
+  d
+}
+
+history_window <- function(hist, from, to) {
+  w  <- hist %>% filter(year >= from, year <= to)
+  k  <- 100 / w$real_idx[1]                 # real value = 100 in the first year
+  w %>% transmute(t = year, mult = ratio, real = real_idx * k, spec = spec_idx * k,
+                  market_value, real_value)
+}
+
+phase_real <- function(mult, prev_mult) {
+  rising <- !is.na(prev_mult) && mult > prev_mult
+  case_when(
+    mult < 0.98             ~ "Market BELOW real value: homes are undervalued",
+    mult < 1.02             ~ "Fairly priced: market close to real value",
+    mult >= 1.4 &  rising   ~ "Danger zone: bubble still inflating",
+    mult >= 1.4            ~ "Danger zone: bubble starting to deflate",
+    rising                  ~ "Boom: speculative premium growing",
+    TRUE                    ~ "Deflating: speculative premium shrinking"
+  )
+}
+
+fmt_t <- function(m) ifelse(is.na(m), "n/a", sprintf("$%.1f trillion", m / 1e6))
+
+# =============================================================================
+# Plots (shared by both modes)
+# =============================================================================
+bubble_plot <- function(row, r_lim, real0 = 100) {
+  r_gold <- sqrt(row$real / real0)        # AREA proportional to value
+  r_red  <- sqrt(row$spec / real0)
+  r_ref  <- 1                             # starting real value, for reference
+  p <- ggplot()
+  if (row$spec >= row$real) {
+    p <- p +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_red), fill = RED, colour = NA, alpha = 0.9) +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_gold), fill = GOLD, colour = NA)
+  } else {
+    # market below real value: blue ring = undervaluation gap,
+    # gold outline = real value, red disc = what the market is actually paying
+    p <- p +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_gold), fill = BLUE, colour = NA, alpha = 0.35) +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_red), fill = RED, colour = NA, alpha = 0.9) +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_gold), colour = GOLD, linewidth = 2.5)
+  }
+  txt_col <- if (row$spec >= row$real) "#2B2B2B" else "white"
+  p +
+    geom_circle(aes(x0 = 0, y0 = 0, r = r_ref), colour = "#555555",
+                linetype = "dotted", linewidth = 0.7) +
+    annotate("text", 0, 0.08, label = sprintf("%.2fx", row$mult),
+             fontface = "bold", size = 13, colour = txt_col) +
+    annotate("text", 0, -0.17, label = "market / real", size = 4, colour = txt_col) +
+    annotate("text", 0, -r_lim * 0.97, size = 3.4, colour = "#777777",
+             label = "dotted circle = starting real value") +
+    coord_equal(xlim = c(-r_lim, r_lim), ylim = c(-r_lim, r_lim)) +
+    theme_void() +
+    theme(plot.background = element_rect(fill = BG, colour = NA))
+}
+
+line_plot <- function(sim, t_now, xlab, ylab) {
+  long <- sim %>%
+    select(t, `Real value` = real, `Speculative value` = spec) %>%
+    pivot_longer(-t, names_to = "series", values_to = "value")
+  under <- sim %>% mutate(lo = pmin(spec, real), hi = real)
+  over  <- sim %>% mutate(lo = real, hi = pmax(spec, real))
+  t_pk  <- sim$t[which.max(sim$mult)]
+  t_lo  <- sim$t[which.min(sim$mult)]
+  y_top <- max(sim$spec, sim$real)
+
+  p <- ggplot() +
+    geom_ribbon(data = over,  aes(t, ymin = lo, ymax = hi), fill = RED,  alpha = 0.15) +
+    geom_ribbon(data = under, aes(t, ymin = lo, ymax = hi), fill = BLUE, alpha = 0.25) +
+    geom_line(data = long, aes(t, value, colour = series), linewidth = 1.1) +
+    scale_colour_manual(values = c("Real value" = GOLD, "Speculative value" = RED), name = NULL) +
+    geom_vline(xintercept = t_now, colour = "#2B2B2B", linewidth = 0.5) +
+    annotate("text", t_pk, y_top * 1.05, size = 3.4, colour = "#555",
+             label = sprintf("Peak %.2fx", max(sim$mult)))
+  if (min(sim$mult) < 1)
+    p <- p + annotate("text", t_lo, y_top * 1.12, size = 3.4, colour = "#555",
+                      label = sprintf("Low %.2fx", min(sim$mult)))
+  p +
+    scale_y_continuous(limits = c(0, y_top * 1.16)) +
+    labs(x = xlab, y = ylab) +
+    theme_minimal(base_size = 12) +
+    theme(plot.background = element_rect(fill = BG, colour = NA),
+          legend.position = "top", panel.grid.minor = element_blank())
+}
+
+# =============================================================================
+# App
+# =============================================================================
+ui <- fluidPage(
+  tags$head(tags$style(HTML(sprintf(
+    "body{background:%s;font-family:Helvetica,Arial,sans-serif;color:#2B2B2B}
+     .phase{font-size:20px;font-weight:700;margin:4px 0 10px;min-height:52px}
+     .stat{font-size:15px;margin:5px 0}
+     .note{font-size:12px;color:#666}
+     .key span{display:inline-block;width:12px;height:12px;border-radius:50%%;margin:0 5px 0 12px;vertical-align:middle}",
+    BG)))),
+  titlePanel("What happens when a bubble pops?"),
+  div(class = "key",
+      HTML(sprintf(paste0(
+        "<span style='background:%s'></span>Real value",
+        "<span style='background:%s'></span>Speculative value (market price)",
+        "<span style='background:%s;opacity:.5'></span>Undervaluation gap (market below real value; gold outline = real value)"),
+        GOLD, RED, BLUE))),
+  br(),
+  sliderInput("t", "Year (press play)", min = 1900, max = 2026, value = 1900, step = 1,
+              sep = "", width = "100%",
+              animate = animationOptions(interval = 1000, loop = FALSE)),   # 1 second per year
+  fluidRow(
+    column(3,
+      wellPanel(
+        radioButtons("mode", "Data",
+                     c("Actual US housing data, 1900-2026" = "real", "Simulated scenario" = "sim"),
+                     selected = "real"),
+        conditionalPanel("input.mode == 'sim'",
+          h4("Scenario"),
+          sliderInput("peak", "Peak bubble (market / real)", 1.1, 2.5, 1.56, step = 0.01),
+          sliderInput("trough", "Panic bottom (market / real)", 0.5, 1.0, 0.80, step = 0.01),
+          sliderInput("damage", "Damage to real value from the crash (%)", 0, 40, 15, step = 1),
+          p(class = "note",
+            "Damage = how much the crash itself lowers fundamentals: foreclosures, fire sales, ",
+            "job losses and tighter credit push rents and incomes down. Half of it is repaired ",
+            "during the recovery.")
+        ),
+        conditionalPanel("input.mode == 'real'",
+          selectInput("episode", "Period", names(EPISODES),
+                      selected = "Full history (1900-2026)"),
+          p(class = "note",
+            "Values are adjusted for inflation and indexed so real value = 100 in the first ",
+            "year of the period. Real value = what homes would cost if prices had tracked rents ",
+            "(1990s price-to-rent ratio = fair)."),
+          p(class = "note",
+            "Pick a shorter period to zoom in: the Great Depression shows the market falling ",
+            "below real value; the 2000s show the bubble popping.")
+        )
+      )
+    ),
+    column(4,
+      div(class = "phase", textOutput("phase")),
+      plotOutput("bubble", height = "400px")
+    ),
+    column(5,
+      fluidRow(
+        column(6,
+          div(class = "stat", strong("Real value: "), textOutput("real", inline = TRUE)),
+          div(class = "stat", strong("Market value: "), textOutput("spec", inline = TRUE))),
+        column(6,
+          div(class = "stat", strong("Gap: "), textOutput("gap", inline = TRUE)),
+          div(class = "stat", strong("Market vs. peak: "), textOutput("drop", inline = TRUE)))
+      ),
+      uiOutput("dollars"),
+      plotOutput("lines", height = "340px")
+    )
+  ),
+  uiOutput("footer")
+)
+
+server <- function(input, output, session) {
+  hist <- reactiveVal(NULL)
+
+  # load the history the first time "actual data" is selected
+  observeEvent(input$mode, {
+    if (input$mode == "real" && is.null(hist())) {
+      withProgress(message = "Loading 1900-2026 housing data...", value = 0.5, {
+        hist(load_history())
+      })
+    }
+  })
+
+  # reset the timeline whenever the mode or period changes
+  observeEvent(list(input$mode, input$episode, hist()), {
+    if (input$mode == "sim") {
+      updateSliderInput(session, "t", min = 0, max = T_MAX, value = 0)
+    } else if (!is.null(hist())) {
+      rng <- EPISODES[[input$episode]]
+      updateSliderInput(session, "t", min = rng[1], max = rng[2], value = rng[1])
+    }
+  })
+
+  sim <- reactive({
+    if (input$mode == "sim") {
+      simulate(input$peak, input$trough, input$damage / 100)
+    } else {
+      req(hist())
+      rng <- EPISODES[[input$episode]]
+      history_window(hist(), rng[1], rng[2])
+    }
+  })
+
+  row <- reactive({
+    r <- sim()[sim()$t == input$t, ]
+    req(nrow(r) == 1)                      # wait for the slider to catch up
+    r
+  })
+  prev_mult <- reactive({
+    p <- sim()$mult[sim()$t == input$t - 1]
+    if (length(p)) p else NA
+  })
+  r_lim <- reactive(sqrt(max(sim()$spec, sim()$real, 100) / 100) * 1.05)
+
+  output$bubble <- renderPlot(bubble_plot(row(), r_lim()), bg = BG)
+  output$lines  <- renderPlot({
+    if (input$mode == "sim")
+      line_plot(sim(), input$t, "Time", "Value (starting real value = 100)")
+    else
+      line_plot(sim(), input$t, NULL, "Inflation-adjusted value (start = 100)")
+  }, bg = BG)
+
+  output$phase <- renderText({
+    if (input$mode == "sim") phase_sim(row()$t, row()$mult)
+    else paste0(row()$t, ": ", phase_real(row()$mult, prev_mult()))
+  })
+  output$real <- renderText(sprintf("%.0f (%+.0f%% vs. start)", row()$real, row()$real - 100))
+  output$spec <- renderText(sprintf("%.0f", row()$spec))
+  output$gap  <- renderText({
+    g <- row()$spec - row()$real
+    if (g >= 0) sprintf("%.0f speculative premium", g) else sprintf("%.0f below real value", -g)
+  })
+  output$drop <- renderText(sprintf("%+.0f%%", 100 * (row()$spec / max(sim()$spec) - 1)))
+
+  output$dollars <- renderUI({
+    if (input$mode != "real") return(NULL)
+    r <- row()
+    if (is.na(r$market_value))
+      return(div(class = "note", "Dollar totals start in 1945, when Federal Reserve data begin."))
+    div(class = "stat",
+        strong("All US owner-occupied homes: "),
+        sprintf("market %s, real %s (not inflation-adjusted)",
+                fmt_t(r$market_value), fmt_t(r$real_value)))
+  })
+
+  output$footer <- renderUI({
+    if (input$mode == "sim")
+      p(class = "note",
+        "Stylised model, not a forecast. Defaults are loosely based on US housing: the market peaked at about ",
+        "1.56x rent-justified value in 2006, and in the 1930s prices fell to about 0.8x.")
+    else
+      p(class = "note",
+        "Sources: Jorda-Schularick-Taylor Macrohistory Database (1900-1989); S&P CoreLogic Case-Shiller ",
+        "US National Home Price Index, BLS CPI Rent of Primary Residence and CPI via FRED (1990-2026); ",
+        "Federal Reserve Z.1 via FRED (dollar totals, 1945-2026). Annual averages; 2026 is year-to-date. ",
+        "The two price-to-rent sources are joined at 1990.")
+  })
+}
+
+shinyApp(ui, server)
+```
+
+## An Economic Bubble Modeler
+
+```
+# =============================================================================
+# What happens when a bubble pops?  Interactive Shiny app for RStudio
+#
+#   Gold circle = real value (what the asset is fundamentally worth)
+#   Red circle  = speculative value (what the market is paying)
+#
+# A bubble goes through five phases: Boom -> Peak -> Crash -> Panic (overshoot,
+# market value falls BELOW real value) -> Recovery. The crash also damages
+# real value itself: foreclosures, fire sales, job losses and tighter credit
+# lower rents and incomes, so the gold circle shrinks too.
+#
+# Press play on the timeline slider, or drag it, and adjust the scenario
+# sliders to see how a bigger bubble, a deeper panic or more economic damage
+# changes the picture.
+#
+# HOW TO RUN IN RSTUDIO
+#   1. Install packages once (Console):
+#        install.packages(c("shiny", "ggplot2", "ggforce", "dplyr", "tidyr"))
+#   2. Open this file (app.R) and click "Run App".
+#
+# This is a stylised model, not a forecast. Default settings are loosely based
+# on US housing: peak ~1.56x in 2006 (Case-Shiller / CPI rent, 1990s = fair),
+# and the 1930s, when prices fell to ~0.8x of rent-justified value.
+# =============================================================================
+
+library(shiny)
+library(ggplot2)
+library(ggforce)
+library(dplyr)
+library(tidyr)
+
+GOLD <- "#D4A017"; RED <- "#C0392B"; BLUE <- "#3B7DD8"; BG <- "#FAF8F3"
+T_MAX <- 100            # model time steps (think "months" or "quarters")
+
+# ---- Model --------------------------------------------------------------------
+# Phase timing (fractions of the timeline)
+T_PEAK   <- 40          # bubble peaks
+T_TROUGH <- 58          # panic bottom (market below real value)
+T_HEAL   <- 90          # market back to fair value
+
+smooth <- function(x) x * x * (3 - 2 * x)     # smooth 0 -> 1 ramp
+
+simulate <- function(peak, trough, damage, real0 = 100, growth = 0.002) {
+  t <- 0:T_MAX
+  # multiplier = market value / real value
+  mult <- case_when(
+    t <= T_PEAK   ~ 1 + (peak - 1) * smooth(t / T_PEAK),
+    t <= T_TROUGH ~ peak + (trough - peak) * smooth((t - T_PEAK) / (T_TROUGH - T_PEAK)),
+    t <= T_HEAL   ~ trough + (1 - trough) * smooth((t - T_TROUGH) / (T_HEAL - T_TROUGH)),
+    TRUE          ~ 1
+  )
+  # real value: slow trend growth, minus crash damage that hits after the peak
+  # and is only partly repaired by the end
+  hit <- case_when(
+    t <= T_PEAK        ~ 0,
+    t <= T_TROUGH + 6  ~ damage * smooth((t - T_PEAK) / (T_TROUGH + 6 - T_PEAK)),
+    TRUE               ~ damage * (1 - 0.5 * smooth(pmin((t - T_TROUGH - 6) / 30, 1)))
+  )
+  real <- real0 * (1 + growth)^t * (1 - hit)
+  tibble(t, mult, real, spec = real * mult)
+}
+
+phase <- function(t, mult) {
+  case_when(
+    t == 0                       ~ "Start: fairly priced",
+    t >= T_HEAL                  ~ "Aftermath: fairly priced again, but real value is scarred",
+    t <  T_PEAK - 2              ~ "Boom: speculation inflates the red ring",
+    t <= T_PEAK + 2              ~ "Peak: maximum bubble",
+    mult >= 1                    ~ "Crash: speculative value collapses",
+    t <= T_TROUGH + 2 & mult < 1 ~ "Panic: market falls BELOW real value",
+    TRUE                         ~ "Recovery: prices climb back toward real value"
+  )
+}
+
+# ---- Plots --------------------------------------------------------------------
+bubble_plot <- function(row, r_lim, real0) {
+  r_gold <- sqrt(row$real / real0)        # AREA proportional to value
+  r_red  <- sqrt(row$spec / real0)
+  r_ref  <- 1                             # starting real value, for reference
+  p <- ggplot()
+  if (row$spec >= row$real) {
+    p <- p +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_red), fill = RED, colour = NA, alpha = 0.9) +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_gold), fill = GOLD, colour = NA)
+  } else {
+    # market below real value: blue ring = undervaluation gap,
+    # gold outline = real value, red disc = what the market is actually paying
+    p <- p +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_gold), fill = BLUE, colour = NA, alpha = 0.35) +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_red), fill = RED, colour = NA, alpha = 0.9) +
+      geom_circle(aes(x0 = 0, y0 = 0, r = r_gold), colour = GOLD, linewidth = 2.5)
+  }
+  txt_col <- if (row$spec >= row$real) "#2B2B2B" else "white"
+  p +
+    geom_circle(aes(x0 = 0, y0 = 0, r = r_ref), colour = "#555555",
+                linetype = "dotted", linewidth = 0.7) +
+    annotate("text", 0, 0.08, label = sprintf("%.2fx", row$mult),
+             fontface = "bold", size = 13, colour = txt_col) +
+    annotate("text", 0, -0.17, label = "market / real", size = 4, colour = txt_col) +
+    annotate("text", 0, -r_lim * 0.97, size = 3.4, colour = "#777777",
+             label = "dotted circle = starting real value") +
+    coord_equal(xlim = c(-r_lim, r_lim), ylim = c(-r_lim, r_lim)) +
+    theme_void() +
+    theme(plot.background = element_rect(fill = BG, colour = NA))
+}
+
+line_plot <- function(sim, t_now) {
+  long <- sim %>%
+    select(t, `Real value` = real, `Speculative value` = spec) %>%
+    pivot_longer(-t, names_to = "series", values_to = "value")
+  under <- sim %>% mutate(lo = pmin(spec, real), hi = real) %>% filter(spec < real)
+  over  <- sim %>% mutate(lo = real, hi = pmax(spec, real))
+
+  ggplot() +
+    geom_ribbon(data = over,  aes(t, ymin = lo, ymax = hi), fill = RED,  alpha = 0.15) +
+    geom_ribbon(data = under, aes(t, ymin = lo, ymax = hi), fill = BLUE, alpha = 0.25) +
+    geom_line(data = long, aes(t, value, colour = series), linewidth = 1.1) +
+    scale_colour_manual(values = c("Real value" = GOLD, "Speculative value" = RED), name = NULL) +
+    geom_vline(xintercept = t_now, colour = "#2B2B2B", linewidth = 0.5) +
+    annotate("text", T_PEAK, max(sim$spec) * 1.04, label = "Peak", size = 3.5, colour = "#555") +
+    annotate("text", T_TROUGH, max(sim$spec) * 1.04, label = "Panic bottom", size = 3.5,
+             colour = "#555") +
+    scale_y_continuous(limits = c(0, max(sim$spec) * 1.08)) +
+    labs(x = "Time", y = "Value (starting real value = 100)") +
+    theme_minimal(base_size = 12) +
+    theme(plot.background = element_rect(fill = BG, colour = NA),
+          legend.position = "top", panel.grid.minor = element_blank())
+}
+
+# ---- App ----------------------------------------------------------------------
+ui <- fluidPage(
+  tags$head(tags$style(HTML(sprintf(
+    "body{background:%s;font-family:Helvetica,Arial,sans-serif;color:#2B2B2B}
+     .phase{font-size:22px;font-weight:700;margin:4px 0 10px}
+     .stat{font-size:15px;margin:5px 0}
+     .note{font-size:12px;color:#666}
+     .key span{display:inline-block;width:12px;height:12px;border-radius:50%%;margin:0 5px 0 12px;vertical-align:middle}",
+    BG)))),
+  titlePanel("What happens when a bubble pops?"),
+  div(class = "key",
+      HTML(sprintf(paste0(
+        "<span style='background:%s'></span>Real value",
+        "<span style='background:%s'></span>Speculative value (market price)",
+        "<span style='background:%s;opacity:.5'></span>Undervaluation gap (market below real value; gold outline = real value)"),
+        GOLD, RED, BLUE))),
+  br(),
+  sliderInput("t", "Timeline (press play)", min = 0, max = T_MAX, value = 0, step = 1,
+              width = "100%", animate = animationOptions(interval = 120, loop = FALSE)),
+  fluidRow(
+    column(3,
+      wellPanel(
+        h4("Scenario"),
+        sliderInput("peak", "Peak bubble (market / real)", 1.1, 2.5, 1.56, step = 0.01),
+        sliderInput("trough", "Panic bottom (market / real)", 0.5, 1.0, 0.80, step = 0.01),
+        sliderInput("damage", "Damage to real value from the crash (%)", 0, 40, 15, step = 1),
+        p(class = "note",
+          "Damage = how much the crash itself lowers fundamentals: foreclosures, fire sales, ",
+          "job losses and tighter credit push rents and incomes down. Half of it is repaired ",
+          "during the recovery.")
+      )
+    ),
+    column(4,
+      div(class = "phase", textOutput("phase")),
+      plotOutput("bubble", height = "400px")
+    ),
+    column(5,
+      fluidRow(
+        column(6,
+          div(class = "stat", strong("Real value: "), textOutput("real", inline = TRUE)),
+          div(class = "stat", strong("Market value: "), textOutput("spec", inline = TRUE))),
+        column(6,
+          div(class = "stat", strong("Gap: "), textOutput("gap", inline = TRUE)),
+          div(class = "stat", strong("Market vs. peak: "), textOutput("drop", inline = TRUE)))
+      ),
+      plotOutput("lines", height = "360px")
+    )
+  ),
+  p(class = "note",
+    "Stylised model, not a forecast. Defaults are loosely based on US housing: the market peaked at about ",
+    "1.56x rent-justified value in 2006, and in the 1930s prices fell to about 0.8x.")
+)
+
+server <- function(input, output, session) {
+  sim   <- reactive(simulate(input$peak, input$trough, input$damage / 100))
+  row   <- reactive(sim()[sim()$t == input$t, ])
+  r_lim <- reactive(sqrt(max(sim()$spec, sim()$real) / 100) * 1.05)
+
+  output$bubble <- renderPlot(bubble_plot(row(), r_lim(), 100), bg = BG)
+  output$lines  <- renderPlot(line_plot(sim(), input$t), bg = BG)
+  output$phase  <- renderText(phase(row()$t, row()$mult))
+  output$real   <- renderText(sprintf("%.0f (%+.0f%% vs. start)", row()$real, row()$real - 100))
+  output$spec   <- renderText(sprintf("%.0f", row()$spec))
+  output$gap    <- renderText({
+    g <- row()$spec - row()$real
+    if (g >= 0) sprintf("%.0f speculative premium", g) else sprintf("%.0f below real value", -g)
+  })
+  output$drop   <- renderText(sprintf("%+.0f%%", 100 * (row()$spec / max(sim()$spec) - 1)))
+}
+
+shinyApp(ui, server)
+```
