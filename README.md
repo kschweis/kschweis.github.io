@@ -33,7 +33,7 @@ This was a class exercise where we began exploring how to create maps in R.  I a
 ###### 4) Sam Houston State University Panel — Annual Gini coefficients for all 50 states and D.C. from 1916 to 2023, useful for time-series analysis.profiles.shsu
 ###### 5) SSTI Blog — 2022 data with New York (0.5208) as the highest, followed by Connecticut, Massachusetts, California, and Louisiana.
 
-'''
+```
 # US States Gini Coefficient Choropleth Map — Red to Gold Gradient
 # ================================================================
 
@@ -93,4 +93,4 @@ ggplot(data = map_gini, aes(x = long, y = lat, group = group)) +
     legend.title = element_text(family = "Verdana", face = "bold"),
     legend.text = element_text(family = "Verdana")
   ) 
-'''
+```
