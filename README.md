@@ -213,7 +213,9 @@ write.csv(dollar_value, "devaluation_of_100_1900_2026.csv", row.names = FALSE)
 ```
 
 # A note for Guy
-I would like to learn how to put interactive graphics and dashboards here next.  Is that up coming in the curriculum or should I see you outside of class time?  The following is the R code for some of my stuff I was messing with this weekend.
+I would like to learn how to put interactive graphics and dashboards on my page.  Is that up coming in the curriculum or should I see you outside of class time?  The following is the R code for some of my stuff I was messing with this weekend.  I had a blast vibe coding, I hate to say it but I did.  The first image is the amount of wealth needed to by a house in the years 1981 and 1986.  I will write more about it when I next update this page.  I also have some code for interactive graphics and a dashboard I would like to put on this page.  Feel free to run them and let me know what you think!
+
+I am a big fan of the term "Work Slop" which means sloppy work produced by an AI.  I have told the people I most directly work with that I will not accept their work slop coming across my desk.  I bring this up because I feel that some of the visuals I am generating at this moment test the limits of work slop, but I want you to know that I am very conscious of the time you take to grade my work and don't want to send you work slop as I would find that highly offensive myself.  I am learning a lot in your class and just have not had time to edit these vibe coded graphics enough to make the presentable.  In you class I am learning how to edit code and use AI responsibly and as the class progresses my quality of work will improve.
 
 ## Wealth Needed to Buy a Home
 <img width="2340" height="1300" alt="quarterly_mortgage_payments" src="https://github.com/user-attachments/assets/4995a93c-0690-4206-8859-132c336fc339" />
