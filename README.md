@@ -95,13 +95,16 @@ ggplot(data = map_gini, aes(x = long, y = lat, group = group)) +
   ) 
 ```
 
-## Entry 4: Economics: What's a Dollar Worth,  (HW 2 Part 2)
+## Entry 4: Economics: What's a Dollar Worth, The Devaluation of $100  (HW 2 Part 2)
 
 <img width="844" height="498" alt="What&#39;s a Dollar Worth 1900" src="https://github.com/user-attachments/assets/2bdcdfe8-d261-424d-bcbd-93871e73eba3" />
 
+<img width="844" height="498" alt="$100 Devaluation" src="https://github.com/user-attachments/assets/4605c985-38ad-4930-b7ca-c1ee66d1273d" />
+
+
 Unfortunately, I went full “vibe coding” for this one.  I am a little embarrassed about it as I have been so staunchly anti-AI.  But man this was easy and useful.  I think the main lessons I took away from this is that the ease of use is not necessarily a plus.  Using AI allows data designers to get instant gratification.  I am still not sure how much of this can really be considered my work and how much is the AI.  It seems like it would create a false sense of accomplishment for data designers.  On top of that I did not vet the sources at all for this project. I let the AI run wild and I did very little data cleaning, wrangling or verification.  I once heard AI described as mansplaining as a service.  It will tell you, with confidence, the wrong information.  And it is up to professionals like myself to properly verify the information.  Not doing so would be irresponsible and who knows how dangerous.  I think what this exercise taught me is that we are all coders and programmers now in the same way that a 3D printer makes us all manufacturers.  Coding and programming has been  a craft reserved for the trained few.  Now everyone, anyone, has access to the ability to program, code, and develop.  In the same way that a loom made anyone a weaver.  As I said earlier, I was floored.  I spent a whole day on my weekend having an AI build interesting visualizations for me.  I created interactive graphics and dashboards and am looking forward to loading them up on this page once I figure out how.  Maybe I will ask AI.  Working at the college and having access to AR and VR tech and now this is really heady.  Its a Brave New World…
 
-Anyhow, this is a graphic show the purchasing power of a 1900 dollar today.  A dollar is worth 2.5 cents apparently.  I spent a lot of time with economics graphs this weekend and this was one of my favorites as I feel it starkly explains why things feel harder today.  We all know  twenty dollars isn’t twentying like it used to and this graph is expressing that feeling.  This chart still could use some optimizing regarding labels and type face, but it came out pretty clean for a vibe code.
+Anyhow, this is a graphic show the purchasing power of a 1900 dollar today.  A dollar is worth 2.5 cents apparently.  I spent a lot of time with economics graphs this weekend and this was one of my favorites as I feel it starkly explains why things feel harder today.  We all know  twenty dollars isn’t twentying like it used to and this graph is expressing that feeling.  This chart still could use some optimizing regarding labels and type face, but it came out pretty clean for a vibe code.  The second Image is essentially the same but for $100.  I like this chart because it implies that had inflation occurred without and increase in the money supply, which is just deflation, money would have become more scarce and valuable.  Its illuminating why it feels like previous generations were compensated better than young workers today.  Because they essentially were.  Money has be devalued.
 
 ##### This Data Visualization was created in RStudio and by using the AI Perplexity 
 ###### I am both awed by AI and ashamed I used it
