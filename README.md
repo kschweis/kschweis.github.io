@@ -2,23 +2,23 @@
 
 #### dat2002
 
-## Entry 1: US vs. World Gini Coefficient
+## Entry 1 HW 4 1/2: US vs. World Gini Coefficient
 ![Visualization 1](/Rplot.png)
 
 This was a test chart to get the feel of GitHub and make sure I could actually upload something.  Obviously a lot is wrong with this chart from color use to labels and the information in general.  But like I said, this was a first attempt at creating a GitHub page and I am pretty excited to continue on and learn more as well as create my own graphics from data I care about.
 
-## Entry 2Wealth Needed to Buy a Home
+## Entry 2 HW 4 2/2: Wealth Needed to Buy a Home
 <img width="2340" height="1300" alt="quarterly_mortgage_payments" src="https://github.com/user-attachments/assets/4995a93c-0690-4206-8859-132c336fc339" />
 
 This was a test image created in RStudio using the AI Perplexity.  It keeps with our previous theme of housing and shows how much more wealth is needed to by a house in 2026 than in 1981.
 
-## Entry 2: Texas Precipitation by County
+## Entry 3 HW 6 1/2: Texas Precipitation by County
 
 <img width="844" height="498" alt="Texas_Rain" src="https://github.com/user-attachments/assets/e748b3c8-7144-4427-9441-59a4adfab892" />
 
 This is a chart created for a class assignment where we began considering color.  I selected brown for the dryer counties and green for the wetter counties as those colors symbolize arid and lush environments respectively.  You may also notice that two counties are not filled with any color.  This was a data wrangling issue I had regarding the spelling of county's name which I missed when merging that data.  I know how the correct the issue but I have not taken the time to do so due to conflicting life commitments.  I do know how to account for it going forward and will display the knowledge with completed charts.
 
-## Entry 3: Maps, Color & And US Gini Coefficient By State (HW 2 Part 1)
+## Entry 4 HW 6 2/2: Maps, Color & And US Gini Coefficient By State (HW 2 Part 1)
 
 ### Map A
 <img width="844" height="498" alt="US States" src="https://github.com/user-attachments/assets/aa3baba9-c6c5-43ba-bd56-3408ee0c9d29" />
@@ -100,7 +100,7 @@ ggplot(data = map_gini, aes(x = long, y = lat, group = group)) +
   ) 
 ```
 
-## Entry 4: Economics: What's a Dollar Worth, The Devaluation of $100  (HW 2 Part 2)
+## Entry 5: Economics: What's a Dollar Worth, The Devaluation of $100  (HW 2 Part 2)
 
 <img width="844" height="498" alt="What&#39;s a Dollar Worth 1900" src="https://github.com/user-attachments/assets/2bdcdfe8-d261-424d-bcbd-93871e73eba3" />
 
