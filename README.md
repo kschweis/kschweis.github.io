@@ -2,6 +2,9 @@
 
 #### dat2002
 
+<img width="1134" height="498" alt="Unemployment_Party" src="https://github.com/user-attachments/assets/a6965694-132a-4183-9772-7de8c917a9a3" />
+
+
 ## Entry 1 HW 4 1/2: US vs. World Gini Coefficient
 ![Visualization 1](/Rplot.png)
 
