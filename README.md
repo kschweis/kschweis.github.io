@@ -2,6 +2,9 @@
 
 #### dat2002
 
+<img width="432" height="360" alt="diagram" src="https://github.com/user-attachments/assets/9ee5ba33-6ebe-4c4a-a2b7-8121fad9fe05" />
+
+
 <img width="1134" height="498" alt="Unemployment_Party" src="https://github.com/user-attachments/assets/a6965694-132a-4183-9772-7de8c917a9a3" />
 
 
