@@ -2,6 +2,9 @@
 
 #### dat2002
 
+<img width="1134" height="498" alt="RFK_Wordcloud" src="https://github.com/user-attachments/assets/7f5d9de1-451c-48ec-9c45-f37320810723" />
+
+
 <img width="432" height="360" alt="diagram" src="https://github.com/user-attachments/assets/9ee5ba33-6ebe-4c4a-a2b7-8121fad9fe05" />
 
 
