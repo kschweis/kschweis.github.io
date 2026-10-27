@@ -2,6 +2,9 @@
 
 #### dat2002
 
+<img width="1134" height="498" alt="Colorado Out Migration" src="https://github.com/user-attachments/assets/ee953628-4a8f-4e03-af11-e6f4ae5da4fc" />
+
+
 <img width="1134" height="498" alt="RFK_Wordcloud" src="https://github.com/user-attachments/assets/7f5d9de1-451c-48ec-9c45-f37320810723" />
 
 
