@@ -2,6 +2,10 @@
 
 #### dat2002
 
+## Sankey Test
+
+saveNetwork(my_plot, file = "sankey_diagram.html", selfcontained = TRUE) 
+
 <img width="1134" height="498" alt="Colorado Out Migration" src="https://github.com/user-attachments/assets/ee953628-4a8f-4e03-af11-e6f4ae5da4fc" />
 
 
