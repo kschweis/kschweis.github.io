@@ -1445,3 +1445,5 @@ The first image is an example from class and is used in its unaltered state as a
 
 > ggplot(long_gini, aes(Year_Numerical, Gini_Coeff)) +     geom_point(color = "#21908C", size = 2) + geom_smooth(color = "grey30", fill = "grey80") + theme_minimal()
 
+## HW 8: Annotations and Interactivity - Gini Coefficient Data
+https://ds.palladur.com/user/kschweis/rstudio/files/Tool.html
