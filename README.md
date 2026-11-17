@@ -1448,13 +1448,10 @@ At this point I think it is hard to tell what story is being told.  I think I wi
 
 This visualization was created in R.
 
->> ggplot(long_gini, aes(Year_Numerical, Gini_Coeff)) +     geom_point(color = "#21908C", size = 2) + geom_smooth(color = "grey30", fill = "grey80") + theme_minimal() + labs(title = "Global Gini Coefficients Over Time",
-+     subtitle = "United States compared with other countries",
-+     caption = "Source: Gini Data from Class",  x = "Year", y = "Gini coefficient")
-`geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
+>> ggplot(long_gini, aes(Year_Numerical, Gini_Coeff)) +     geom_point(color = "#21908C", size = 2) + geom_smooth(color = "grey30", fill = "grey80") + theme_minimal() + labs(title = "Global Gini Coefficients Over Time", + subtitle = "United States compared with other countries", + caption = "Source: Gini Data from Class",  x = "Year", y = "Gini coefficient") `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
 
 
 ## HW 8: Annotations and Interactivity - Gini Coefficient Data
-https://ds.palladur.com/user/kschweis/rstudio/files/Tool.html
+https://ds.palladur.com/user/kschweis/rstudio/files/dat2002/Web_Files/Gini_Year.html
 
 This was a fun one.  I decided to continue on with the base code of the previous homework's visualizations.  The two main changes to this visualization are 1) an interactive tooltip which says the country name and the exact Gini Coefficient as well as 2) calling out the US coefficients over time and then drawing a rectangle as an annotation around the years which the US trended at or below the global average.  The US data is relatively flat with a slight incline along the graph.  It appears the US was only at or below the global average due to an overall increase in global inequality.  That is to say, the US did not seem to lower its inequality to achieve its relative improvement.
