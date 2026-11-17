@@ -1425,3 +1425,25 @@ server <- function(input, output, session) {
 # Opens wherever RStudio is set to show apps (Run App menu: Window or Viewer Pane)
 runApp(shinyApp(ui, server), launch.browser = getOption("shiny.launch.browser", interactive()))
 ```
+
+## HW 7: Color & Accessibility - Gini Coefficient Data
+
+### Unmodified Example From Class
+<img width="986" height="498" alt="Gini_Un-Mod" src="https://github.com/user-attachments/assets/87778963-257b-4128-8a29-c4a4542dcafa" />
+
+### Colorblind Friendly
+<img width="986" height="498" alt="Gini_ColorBlind" src="https://github.com/user-attachments/assets/faac599b-9bd6-492a-8d85-11060e9dfdd8" />
+
+### Grayscale
+<img width="986" height="498" alt="Gini_Grayscale_no_scale" src="https://github.com/user-attachments/assets/3473b0a3-d77f-4c0a-a204-ebcf5d51afee" />
+
+### Conclusion
+<img width="986" height="498" alt="Gini_ColorBlind_no_scale" src="https://github.com/user-attachments/assets/cc90e411-5a27-4d13-aaa4-42d569f37ded" />
+
+
+The first image is an example from class and is used in its unaltered state as a "base" for my next two images.  I thought the orange dots on the light blue background was difficult to read.  In order to make it more "accessible" I added a viridis color scale to the code.  I noticed two points at this juncture.  One, the upper end of the scale was still difficult to read.  And two, a scale is not needed as part of the aesthetics as a scale is given on the y axis for reference.  My next attempt was a simple grayscale model.  I liked this one more, however my main critique is that the portion gets a little difficult to read at the narrow section.  To account for this I added the accessible friendly coloring back into the graph, but left of the scale for the previously noted reason.  This is my favorite as it is accessible but not devoid of coloring and the code is below.
+
+> ggplot(long_gini, aes(Year_Numerical, Gini_Coeff)) +
++     geom_point(color = "#21908C", size = 2) +
++     geom_smooth(color = "grey30", fill = "grey80") +
++     theme_minimal()
