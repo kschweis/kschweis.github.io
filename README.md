@@ -1455,3 +1455,5 @@ This visualization was created in R.
 https://ds.palladur.com/user/kschweis/rstudio/files/dat2002/Web_Files/Gini_Year.html
 
 This was a fun one.  I decided to continue on with the base code of the previous homework's visualizations.  The two main changes to this visualization are 1) an interactive tooltip which says the country name and the exact Gini Coefficient as well as 2) calling out the US coefficients over time and then drawing a rectangle as an annotation around the years which the US trended at or below the global average.  The US data is relatively flat with a slight incline along the graph.  It appears the US was only at or below the global average due to an overall increase in global inequality.  That is to say, the US did not seem to lower its inequality to achieve its relative improvement.
+
+This visualization was created in R.
