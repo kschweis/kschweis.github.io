@@ -1438,12 +1438,23 @@ runApp(shinyApp(ui, server), launch.browser = getOption("shiny.launch.browser", 
 <img width="986" height="498" alt="Gini_Grayscale_no_scale" src="https://github.com/user-attachments/assets/3473b0a3-d77f-4c0a-a204-ebcf5d51afee" />
 
 ### Conclusion
-<img width="986" height="498" alt="Gini_ColorBlind_no_scale" src="https://github.com/user-attachments/assets/cc90e411-5a27-4d13-aaa4-42d569f37ded" />
+<img width="986" height="498" alt="Gini_ColorBlind_no_scale (1)" src="https://github.com/user-attachments/assets/1555b432-06e3-48fd-88e4-4d599244fc03" />
+
 
 
 The first image is an example from class and is used in its unaltered state as a "base" for my next two images.  I thought the orange dots on the light blue background was difficult to read.  In order to make it more "accessible" I added a viridis color scale to the code.  I noticed two points at this juncture.  One, the upper end of the scale was still difficult to read.  And two, a scale is not needed as part of the aesthetics as a scale is given on the y axis for reference.  My next attempt was a simple grayscale model.  I liked this one more, however my main critique is that the portion gets a little difficult to read at the narrow section.  To account for this I added the accessible friendly coloring back into the graph, but left of the scale for the previously noted reason.  This is my favorite as it is accessible but not devoid of coloring and the code is below.
 
-> ggplot(long_gini, aes(Year_Numerical, Gini_Coeff)) +     geom_point(color = "#21908C", size = 2) + geom_smooth(color = "grey30", fill = "grey80") + theme_minimal()
+At this point I think it is hard to tell what story is being told.  I think I will continue to explore this data for future homework.
+
+This visualization was created in R.
+
+>> ggplot(long_gini, aes(Year_Numerical, Gini_Coeff)) +     geom_point(color = "#21908C", size = 2) + geom_smooth(color = "grey30", fill = "grey80") + theme_minimal() + labs(title = "Global Gini Coefficients Over Time",
++     subtitle = "United States compared with other countries",
++     caption = "Source: Gini Data from Class",  x = "Year", y = "Gini coefficient")
+`geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
+
 
 ## HW 8: Annotations and Interactivity - Gini Coefficient Data
 https://ds.palladur.com/user/kschweis/rstudio/files/Tool.html
+
+This was a fun one.  I decided to continue on with the base code of the previous homework's visualizations.  The two main changes to this visualization are 1) an interactive tooltip which says the country name and the exact Gini Coefficient as well as 2) calling out the US coefficients over time and then drawing a rectangle as an annotation around the years which the US trended at or below the global average.  The US data is relatively flat with a slight incline along the graph.  It appears the US was only at or below the global average due to an overall increase in global inequality.  That is to say, the US did not seem to lower its inequality to achieve its relative improvement.
